@@ -12,9 +12,6 @@ h2 { font-size: 1.15rem; }
 code { background: #eef; padding: 1px 5px; border-radius: 4px; }
 .muted { color: #6b7280; }
 
-/* Home */
-.home { max-width: 720px; margin: 0 auto; padding: 80px 20px; text-align: center; }
-
 /* Botones */
 .btn {
   display: inline-flex;
