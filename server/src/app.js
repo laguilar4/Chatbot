@@ -9,6 +9,8 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 export const app = express();
 
 app.disable('x-powered-by');
+// En producción la API va detrás de Nginx: sin esto, el rate limit vería a todos los usuarios como una sola IP.
+if (env.isProduction) app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigins }));
 app.use(express.json({ limit: '100kb' }));

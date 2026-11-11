@@ -1,6 +1,6 @@
 -- =====================================================================
 -- CARGA DE PREGUNTAS DEL CHATBOT
--- Fuente: "Preguntas (alimentacion del chatbot).docx"
+-- Fuente: "Preguntas (alimentacion del chatbot).docx" (1-14) y panel /admin (15)
 -- Ejecutar sobre una base ya creada con database.txt:
 --   mysql -u root -p --default-character-set=utf8mb4 < seed_preguntas.sql
 -- Si el option_number ya existe, se actualiza (no se duplican filas).
@@ -44,7 +44,11 @@ INSERT INTO questions (option_number, question, answer, is_active) VALUES
   (13, '¿Cuántas fallas por inasistencia hacen que pierda un módulo?',
        'Pierdes el módulo por fallas si acumulas inasistencias injustificadas que superen el veinte por ciento (20%) de la intensidad horaria programada en el periodo académico.', 1),
   (14, '¿Qué pasa si repruebo un módulo por segunda vez?',
-       'Entras en periodo de prueba académico y solo podrás matricular tres (3) módulos obligatorios (incluyendo los dos perdidos). Si repruebas un módulo por tercera vez, solo tendrás derecho a matricular ese único módulo en el periodo.', 1)
+       'Entras en periodo de prueba académico y solo podrás matricular tres (3) módulos obligatorios (incluyendo los dos perdidos). Si repruebas un módulo por tercera vez, solo tendrás derecho a matricular ese único módulo en el periodo.', 1),
+
+  -- 5. Atención
+  (15, '¿Cuales son los horarios de atencion?',
+       'Los horarios de atención son de lunes a viernes de 8:00 am a 6:00pm', 1)
 ON DUPLICATE KEY UPDATE
   question  = VALUES(question),
   answer    = VALUES(answer),

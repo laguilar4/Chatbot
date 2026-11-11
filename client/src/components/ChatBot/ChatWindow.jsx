@@ -13,14 +13,17 @@ export default function ChatWindow({ onClose }) {
   const [view, setView] = useState(VIEWS.MENU);
   const [messages, setMessages] = useState(() => [botMsg('¡Hola! 👋 ¿Cómo podemos ayudarte? Elige una opción:')]);
   const [input, setInput] = useState('');
+  const [listVisible, setListVisible] = useState(true);
   const { questions, status, reload } = usePublicQuestions(view === VIEWS.QUESTIONS);
 
-  const endRef = useRef(null);
+  const lastUserMsgRef = useRef(null);
   const inputRef = useRef(null);
+  const lastUserMsgId = messages.findLast((m) => m.from === 'user')?.id;
 
+  // Deja el último mensaje del usuario arriba para que lo que responde el bot se lea desde el inicio.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, view, status]);
+    lastUserMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [messages, status]);
 
   useEffect(() => {
     if (view === VIEWS.QUESTIONS && status === 'success') inputRef.current?.focus();
@@ -34,9 +37,10 @@ export default function ChatWindow({ onClose }) {
 
   const push = (...msgs) => setMessages((prev) => [...prev, ...msgs]);
 
-  const openQuestions = () => {
-    push(userMsg('Preguntas'), botMsg('Escribe el número de la pregunta que deseas consultar:'));
+  const openQuestions = (label = 'Preguntas') => {
+    push(userMsg(label), botMsg('Escribe el número de la pregunta que deseas consultar:'));
     setView(VIEWS.QUESTIONS);
+    setListVisible(true);
   };
 
   const openWhatsApp = () => {
@@ -58,6 +62,7 @@ export default function ChatWindow({ onClose }) {
       botMsg(found ? found.answer : `"${value}" no es una opción válida. Escribe uno de los números de la lista.`),
     );
     setInput('');
+    setListVisible(false);
   };
 
   const handleSubmit = (e) => {
@@ -79,14 +84,18 @@ export default function ChatWindow({ onClose }) {
 
       <div className="cb-body" aria-live="polite">
         {messages.map((m) => (
-          <div key={m.id} className={`cb-msg cb-msg--${m.from}`}>
+          <div
+            key={m.id}
+            ref={m.id === lastUserMsgId ? lastUserMsgRef : undefined}
+            className={`cb-msg cb-msg--${m.from}`}
+          >
             {m.text}
           </div>
         ))}
 
         {view === VIEWS.MENU && (
           <div className="cb-options">
-            <button type="button" className="cb-option" onClick={openQuestions}>
+            <button type="button" className="cb-option" onClick={() => openQuestions()}>
               ❓ Preguntas
             </button>
             <button type="button" className="cb-option cb-option--whatsapp" onClick={openWhatsApp}>
@@ -96,10 +105,16 @@ export default function ChatWindow({ onClose }) {
         )}
 
         {view === VIEWS.QUESTIONS && (
-          <QuestionsPanel status={status} questions={questions} onSelect={answer} onRetry={reload} onBack={backToMenu} />
+          <QuestionsPanel
+            status={status}
+            questions={questions}
+            listVisible={listVisible}
+            onSelect={answer}
+            onRetry={reload}
+            onShowList={() => openQuestions('Ver otras preguntas')}
+            onBack={backToMenu}
+          />
         )}
-
-        <div ref={endRef} />
       </div>
 
       {view === VIEWS.QUESTIONS && (
@@ -124,7 +139,20 @@ export default function ChatWindow({ onClose }) {
   );
 }
 
-function QuestionsPanel({ status, questions, onSelect, onRetry, onBack }) {
+function QuestionsPanel({ status, questions, listVisible, onSelect, onRetry, onShowList, onBack }) {
+  if (!listVisible) {
+    return (
+      <div className="cb-questions">
+        <button type="button" className="cb-option" onClick={onShowList}>
+          Ver otras preguntas
+        </button>
+        <button type="button" className="cb-link cb-back" onClick={onBack}>
+          ← Volver al menú
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="cb-questions">
       {status === 'loading' && <p className="cb-muted">Cargando preguntas...</p>}
