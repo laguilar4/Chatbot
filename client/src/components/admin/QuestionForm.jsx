@@ -66,8 +66,8 @@ export default function QuestionForm({ initial, suggestedNumber, onSubmit, onCan
   };
 
   return (
-    <form className="card" onSubmit={handleSubmit} noValidate>
-      <h2>{isEdit ? `Editar pregunta #${initial.optionNumber}` : 'Nueva pregunta'}</h2>
+    <form className={`card admin__form${isEdit ? ' admin__form--editing' : ''}`} onSubmit={handleSubmit} noValidate>
+      <h2 className="card__title">{isEdit ? `Editar pregunta #${initial.optionNumber}` : 'Nueva pregunta'}</h2>
 
       <label className="field field--small">
         <span>Número a teclear</span>

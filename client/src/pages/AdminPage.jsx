@@ -38,6 +38,7 @@ export default function AdminPage() {
     () => questions.reduce((max, q) => Math.max(max, q.optionNumber), 0) + 1,
     [questions],
   );
+  const activeCount = useMemo(() => questions.filter((q) => q.isActive).length, [questions]);
 
   const handleLogin = async (key) => {
     setLoginError('');
@@ -79,42 +80,61 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="admin">
-      <header className="admin__header">
-        <h1>Administrar preguntas del chatbot</h1>
-        <nav>
-          <Link to="/">Ver chatbot</Link>
-          {apiKey && (
-            <button type="button" className="btn btn--sm" onClick={() => logout()}>
-              Cerrar sesión
-            </button>
-          )}
-        </nav>
+    <div className="admin-page">
+      <header className="admin-topbar">
+        <div className="admin-topbar__inner">
+          <Link to="/" className="admin-topbar__brand">
+            <img src="/logo.png" alt="Institución Universitaria de Barranquilla" width="167" height="40" />
+          </Link>
+          <nav className="admin-topbar__nav">
+            <Link to="/" className="btn btn--ghost btn--sm">Ver sitio</Link>
+            {apiKey && (
+              <button type="button" className="btn btn--sm" onClick={() => logout()}>
+                Cerrar sesión
+              </button>
+            )}
+          </nav>
+        </div>
       </header>
 
       {!apiKey ? (
         <LoginForm onLogin={handleLogin} error={loginError} />
       ) : (
-        <div className="admin__grid">
-          <QuestionForm
-            initial={editing}
-            suggestedNumber={nextNumber}
-            onSubmit={handleSubmit}
-            onCancel={() => setEditing(null)}
-          />
-          <section className="card">
-            <h2>Preguntas registradas ({questions.length})</h2>
-            {notice && <p className="alert alert--success" role="status">{notice}</p>}
-            {error && <p className="alert alert--error">{error}</p>}
-            <QuestionTable
-              questions={questions}
-              loading={loading}
-              editingId={editing?.id}
-              onEdit={setEditing}
-              onDelete={handleDelete}
+        <main className="admin">
+          <div className="admin__intro">
+            <div>
+              <h1>Preguntas del chatbot</h1>
+              <p className="muted">Crea, edita u oculta las respuestas que ve la comunidad estudiantil.</p>
+            </div>
+            <dl className="admin__stats">
+              <div><dt>Total</dt><dd>{questions.length}</dd></div>
+              <div><dt>Visibles</dt><dd>{activeCount}</dd></div>
+              <div><dt>Ocultas</dt><dd>{questions.length - activeCount}</dd></div>
+            </dl>
+          </div>
+
+          {notice && <p className="alert alert--success admin__notice" role="status">{notice}</p>}
+
+          <div className="admin__grid">
+            <QuestionForm
+              initial={editing}
+              suggestedNumber={nextNumber}
+              onSubmit={handleSubmit}
+              onCancel={() => setEditing(null)}
             />
-          </section>
-        </div>
+            <section className="card">
+              <h2 className="card__title">Preguntas registradas</h2>
+              {error && <p className="alert alert--error">{error}</p>}
+              <QuestionTable
+                questions={questions}
+                loading={loading}
+                editingId={editing?.id}
+                onEdit={setEditing}
+                onDelete={handleDelete}
+              />
+            </section>
+          </div>
+        </main>
       )}
     </div>
   );

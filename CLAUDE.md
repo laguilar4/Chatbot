@@ -41,9 +41,9 @@ Vite incrusta las variables `VITE_*` en el bundle al compilar, así que se defin
 
 ## Servidor EC2
 
-Chatbot desplegado el 2026-11-10 en `http://54.227.69.64`, con tres contenedores en la red `chatbot` y `restart=unless-stopped`:
+Chatbot desplegado el 2026-11-11 en `http://52.91.92.95`, con tres contenedores en la red `chatbot` y `restart=unless-stopped`. Reemplaza a la EC2 anterior (`54.227.69.64`), que ya no respondía y de la que no se pudieron exportar datos, así que la base se cargó solo con el seed.
 
-- `mysql` (imagen `mysql:8.4`): sin puertos publicados, datos en el volumen `chatbot_mysql_data`.
+- `mysql` (imagen `mysql:8.4`, con `--performance-schema=OFF` para ahorrar memoria): sin puertos publicados, datos en el volumen `chatbot_mysql_data`.
 - `server`: API, sin puertos publicados, con variables en `~/proyectos/chatbot/server/.env`.
 - `client`: Nginx, único contenedor publicado, en el puerto 80.
 
@@ -61,8 +61,8 @@ docker run -d --name client --network chatbot --restart unless-stopped -p 80:80 
 
 Al usar `docker exec -i` dentro de un script enviado por `ssh ... bash -s`, el comando consume el resto del script. Ejecutar el script desde un archivo o usar `</dev/null`.
 
-- IP pública `54.227.69.64`, IP privada `172.31.21.70`, usuario `ec2-user`.
-- Amazon Linux 2023, x86_64, unos 4 GB de RAM y 50 GB de disco.
+- IP pública `52.91.92.95`, usuario `ec2-user`, misma llave `chatbot.pem`.
+- Amazon Linux 2023, x86_64, 1 GB de RAM, 2 GB de swap en `/swapfile` (persistente en `/etc/fstab`) y 50 GB de disco.
 - Instalado: Docker (activo al arrancar, `ec2-user` lo usa sin `sudo`), Docker Compose (plugin en `/usr/local/lib/docker/cli-plugins`), Buildx, git y rsync.
 - Los proyectos van en `/home/ec2-user/proyectos`.
 - Solo un proyecto puede usar el puerto 80. Los demás necesitan otro puerto o un proxy inverso por dominio.
@@ -70,13 +70,13 @@ Al usar `docker exec -i` dentro de un script enviado por `ssh ... bash -s`, el c
 Conexión desde la raíz del proyecto, con la llave `chatbot.pem`:
 
 ```bash
-ssh -i chatbot.pem ec2-user@54.227.69.64
+ssh -i chatbot.pem ec2-user@52.91.92.95
 ```
 
 Copia del proyecto desde Git Bash, sin llave, `.env` ni carpetas pesadas:
 
 ```bash
-tar --exclude=node_modules --exclude=dist --exclude=.git --exclude='*.pem' --exclude='.env' -czf - . | ssh -i chatbot.pem ec2-user@54.227.69.64 'mkdir -p ~/proyectos/chatbot && tar -xzf - -C ~/proyectos/chatbot'
+tar --exclude=node_modules --exclude=dist --exclude=.git --exclude='*.pem' --exclude='.env' -czf - . | ssh -i chatbot.pem ec2-user@52.91.92.95 'mkdir -p ~/proyectos/chatbot && tar -xzf - -C ~/proyectos/chatbot'
 ```
 
 ### Puertos del Security Group
@@ -89,7 +89,7 @@ tar --exclude=node_modules --exclude=dist --exclude=.git --exclude='*.pem' --exc
 
 No abrir el 4000 ni el 3306. Las reglas de salida se dejan con todo permitido.
 
-En la EC2 actual se abrieron también el 3306 y el 443. El 3306 sigue sin ser accesible porque el contenedor no lo publica, pero conviene cerrar esa regla. El 443 no tiene efecto mientras Nginx escuche solo en el 80.
+Si se abre el 3306, sigue sin ser accesible porque el contenedor no lo publica, pero conviene cerrar esa regla. El 443 no tiene efecto mientras Nginx escuche solo en el 80.
 
 ### Cambiar `ADMIN_API_KEY`
 
@@ -104,7 +104,7 @@ La clave no se guarda en este archivo ni en git, porque `CLAUDE.md` está en el 
 
 ### Tamaño de la instancia
 
-Unos 4 GB de RAM en x86 sobran para este proyecto. La opción económica equivalente es una t3.small (2 GB), que no requiere cambiar la AMI.
+Con 1 GB de RAM funciona gracias al swap y a MySQL sin `performance_schema`: tras el despliegue quedaron unos 300 MB disponibles. Sin swap, el build de Vite o MySQL pueden quedarse sin memoria. Si el sitio se pone lento, una t3.small (2 GB) da margen sin cambiar la AMI.
 
 ## Recrear todo en una máquina nueva
 
@@ -120,6 +120,13 @@ docker exec mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -h127.0
 ```
 
 **2. Preparar el servidor**
+
+En instancias de 2 GB o menos, crear primero el swap. El `mkswap` de Amazon Linux 2023 no acepta `-q`.
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap defaults 0 0' | sudo tee -a /etc/fstab
+```
 
 ```bash
 sudo dnf install -y docker git rsync
@@ -144,7 +151,7 @@ git clone https://github.com/laguilar4/Chatbot.git ~/proyectos/chatbot
 
 **3. Crear los secretos**
 
-Sustituir `<IP>` y `<CLAVE_ADMIN>`. La clave se le pide al usuario, y si tiene caracteres especiales debe mantenerse entre comillas simples.
+Sustituir `<IP>` y `<CLAVE_ADMIN>`. La clave se le pide al usuario, y si tiene caracteres especiales debe mantenerse entre comillas simples. En el despliegue del 2026-11-11 se reutilizó la del `server/.env` local, enviada por `ssh` a un archivo temporal sin mostrarla.
 
 ```bash
 cd ~/proyectos/chatbot
@@ -177,7 +184,7 @@ Continuar en la misma sesión para conservar `DB_PW`.
 docker network create chatbot
 docker volume create chatbot_mysql_data
 docker run -d --name mysql --network chatbot --restart unless-stopped \
-  --env-file ~/secrets/chatbot-mysql.env -v chatbot_mysql_data:/var/lib/mysql mysql:8.4
+  --env-file ~/secrets/chatbot-mysql.env -v chatbot_mysql_data:/var/lib/mysql mysql:8.4 --performance-schema=OFF
 
 as_root() { docker exec -i mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -h127.0.0.1 -uroot --default-character-set=utf8mb4 "$@"' sh "$@"; }
 
@@ -223,6 +230,6 @@ docker run -d --name client --network chatbot --restart unless-stopped -p 80:80 
 - Programar backups de MySQL (`mysqldump` hacia S3): hoy los datos solo están en el volumen de la EC2.
 - Configurar HTTPS. Sirve un dominio propio o, para empezar, uno gratuito como `<ip-con-guiones>.sslip.io` con Let's Encrypt. Requiere modificar `client/nginx.conf`, publicar el 443 y renovar el certificado automáticamente.
 - Resolver el acceso desde celular: en el PC carga, pero las visitas móviles no llegaban a Nginx. La causa probable es que el navegador móvil fuerza `https://` y el 443 no atiende. HTTPS lo resolvería.
-- Cerrar la regla del 3306 en el Security Group de la EC2 actual.
+- Revisar el Security Group de la EC2 nueva: solo 22 (desde la IP del administrador) y 80.
 - Probar el scroll del chat en un navegador.
 - Confirmar el número de WhatsApp: `client/.env`, `client/.env.example` y `client/Dockerfile` usan 573127384841, pero `README.md` y el valor por defecto de `client/src/config.js` tienen 573014837377.

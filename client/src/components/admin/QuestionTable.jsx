@@ -33,14 +33,15 @@ export default function QuestionTable({ questions, loading, editingId, onEdit, o
           {questions.map((q) => (
             <tr key={q.id} className={q.id === editingId ? 'is-editing' : undefined}>
               <td><span className="badge">{q.optionNumber}</span></td>
-              <td>{q.question}</td>
-              <td className="cell-answer" title={q.answer}>{q.answer}</td>
+              <td className="cell-question">{q.question}</td>
+              <td className="cell-answer" title={q.answer}><span>{q.answer}</span></td>
               <td>
                 <span className={`status ${q.isActive ? 'status--on' : 'status--off'}`}>
                   {q.isActive ? 'Activa' : 'Oculta'}
                 </span>
               </td>
-              <td className="cell-actions">
+              <td>
+                <div className="cell-actions">
                 {confirmId === q.id ? (
                   <>
                     <span className="muted">¿Eliminar?</span>
@@ -61,6 +62,7 @@ export default function QuestionTable({ questions, loading, editingId, onEdit, o
                     </button>
                   </>
                 )}
+                </div>
               </td>
             </tr>
           ))}
